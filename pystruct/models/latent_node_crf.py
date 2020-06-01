@@ -128,8 +128,13 @@ class LatentNodeCRF(GraphCRF):
         else:
             n_input_states = self.n_labels
         self.n_input_states = n_input_states
+        # n_input_states = 6
+        # n_features = 3
+        # n_states = 3 +  3 = 6 (hidden states + labels)
+        # size_joint_feature = 6 * 3 + 6 * (6 + 1) / 2 = 39
         self.size_joint_feature = int(n_input_states * self.n_features +
-                                   self.n_states * (self.n_states + 1) / 2)
+                                      self.n_states * (self.n_states + 1) // 2)
+        print("*** size_joint_feature", repr(self.size_joint_feature))
 
     def initialize(self, X, Y):
         n_features = X[0][0].shape[1]
@@ -139,7 +144,9 @@ class LatentNodeCRF(GraphCRF):
             raise ValueError("Expected %d features, got %d"
                              % (self.n_features, n_features))
 
-        n_labels = len(np.unique(np.hstack([y.ravel() for y in Y])))
+        n_labels = len(np.unique(np.hstack(
+            [self.label_from_latent(y).ravel() for y in Y]))
+        )
         if self.n_labels is None:
             self.n_labels = n_labels
         elif self.n_labels != n_labels:
@@ -193,11 +200,11 @@ class LatentNodeCRF(GraphCRF):
 
         if self.latent_node_features:
             unaries = np.dot(features, unary_params.T)
-            n_hidden = x[2]
+            n_hidden = self._get_n_hidden(x)
             n_visible = features.shape[0] - n_hidden
         else:
             # we only have features for visible nodes
-            n_visible, n_hidden = features.shape[0], x[2]
+            n_visible, n_hidden = features.shape[0], self._get_n_hidden(x)
             # assemble unary potentials for all nodes from observed evidence
             unaries = np.zeros((n_visible + n_hidden, self.n_states))
             unaries_observed = np.dot(features, unary_params.T)
@@ -327,6 +334,9 @@ class LatentNodeCRF(GraphCRF):
         y = self.label_from_latent(h)
         if hasattr(self, 'class_weight'):
             return np.sum(self.class_weight[y])
+
+    def _get_n_hidden(self, x):
+        return x[2]
 
 
 class EdgeFeatureLatentNodeCRF(LatentNodeCRF):
@@ -493,7 +503,7 @@ class EdgeFeatureLatentNodeCRF(LatentNodeCRF):
 
         if self.latent_node_features:
             unaries = np.dot(features, unary_params.T)
-            n_hidden = x[2]
+            n_hidden = self._get_n_hidden(x)
             n_visible = features.shape[0] - n_hidden
         else:
             # we only have features for visible nodes
@@ -640,3 +650,6 @@ class EdgeFeatureLatentNodeCRF(LatentNodeCRF):
             return np.sum(self.class_weight[y])
         return y.size
         return y.size
+
+    def _get_n_hidden(self, x):
+        return x[3]

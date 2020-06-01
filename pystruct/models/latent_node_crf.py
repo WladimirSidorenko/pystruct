@@ -503,7 +503,7 @@ class EdgeFeatureLatentNodeCRF(LatentNodeCRF):
 
         if self.latent_node_features:
             unaries = np.dot(features, unary_params.T)
-            n_hidden = self._get_n_hidden(x)
+            n_hidden = x[-1]
             n_visible = features.shape[0] - n_hidden
         else:
             # we only have features for visible nodes

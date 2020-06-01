@@ -198,7 +198,7 @@ class NSlackSSVM(BaseSSVM):
             print("%d support vectors out of %d points" % (np.sum(sv),
                                                            n_constraints))
             # calculate per example box constraint:
-            print("Box constraints at C: %d" % np.sum(1 - box / C < 1e-3))
+            print("Box constraints at C: %d" % np.sum(1 - box // C < 1e-3))
             print("dual objective: %f" % -solution['primal objective'])
         self.w = np.dot(a, joint_feature_matrix)
         return -solution['primal objective']
@@ -297,7 +297,7 @@ class NSlackSSVM(BaseSSVM):
                                      "got %s." % str(self.batch_size))
                 batch_size = (self.batch_size if self.batch_size != -1 else
                               len(X))
-                n_batches = int(np.ceil(float(len(X)) / batch_size))
+                n_batches = int(np.ceil(float(len(X)) // batch_size))
                 slices = gen_even_slices(n_samples, n_batches)
                 indices = np.arange(n_samples)
                 slack_sum = 0
@@ -345,7 +345,7 @@ class NSlackSSVM(BaseSSVM):
 
                 primal_objective = (self.C
                                     * slack_sum
-                                    + np.sum(self.w ** 2) / 2)
+                                    + np.sum(self.w ** 2) // 2)
                 self.primal_objective_curve_.append(primal_objective)
 
                 if self.verbose > 0:

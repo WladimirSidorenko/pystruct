@@ -132,7 +132,8 @@ class FrankWolfeSSVM(BaseSSVM):
         joint_feature_gt = self.model.batch_joint_feature(X, Y, Y)
         Y_hat = self.model.batch_loss_augmented_inference(X, Y, self.w,
                                                           relaxed=True)
-        djoint_feature = joint_feature_gt - self.model.batch_joint_feature(X, Y_hat)
+        djoint_feature = joint_feature_gt \
+            - self.model.batch_joint_feature(X, Y_hat)
         ls = np.sum(self.model.batch_loss(Y, Y_hat))
         ws = djoint_feature * self.C
         l_rescaled = self.l * n_samples * self.C
@@ -141,7 +142,7 @@ class FrankWolfeSSVM(BaseSSVM):
         w_diff = self.w - ws
         dual_gap = w_diff.T.dot(self.w) - l_rescaled + ls * self.C
         primal_val = dual_val + dual_gap
-        return dual_val, dual_gap, primal_val
+        return dual_val, dual_gap, primal_val, Y_hat
 
     def _frank_wolfe_batch(self, X, Y):
         """Batch Frank-Wolfe learning.
@@ -220,7 +221,9 @@ class FrankWolfeSSVM(BaseSSVM):
             for j in range(n_samples):
                 i = perm[j]
                 x, y = X[i], Y[i]
-                y_hat, delta_joint_feature, slack, loss = find_constraint(self.model, x, y, w)
+                y_hat, delta_joint_feature, slack, loss = find_constraint(
+                    self.model, x, y, w
+                )
                 # ws and ls
                 ws = delta_joint_feature * self.C
                 ls = loss / n_samples
@@ -252,14 +255,31 @@ class FrankWolfeSSVM(BaseSSVM):
                     self.l = l
                 k += 1
 
-            if (self.check_dual_every != 0) and (iteration % self.check_dual_every == 0):
-                dual_val, dual_gap, primal_val = self._calc_dual_gap(X, Y)
+            if ((self.check_dual_every != 0)
+                    and (iteration % self.check_dual_every == 0)):
+                dual_val, dual_gap, primal_val, Y_hat = self._calc_dual_gap(
+                    X, Y
+                )
                 self.primal_objective_curve_.append(primal_val)
                 self.objective_curve_.append(dual_val)
                 self.timestamps_.append(time() - self.timestamps_[0])
                 if self.verbose > 0:
-                    print("dual: %f, dual_gap: %f, primal: %f"
-                          % (dual_val, dual_gap, primal_val))
+                    error_cnt = 0
+                    marginal_delta = marginal_ratio = 0.
+                    for x_i, y_i, y_hat_i in zip(X, Y, Y_hat):
+                        cnt, delta, ratio = self.model.marginal_loss(
+                            x_i, y_i, y_hat_i, self.w
+                        )
+                        error_cnt += cnt
+                        marginal_delta += delta
+                        marginal_ratio += ratio
+                    print((
+                        "dual: %f, dual_gap: %f, primal: %f,"
+                        " error_cnt: %d, marginal_delta: %f,"
+                        " marginal_ratio: %f;"
+                        )
+                        % (dual_val, dual_gap, primal_val, error_cnt,
+                           marginal_delta, marginal_ratio))
 
             if self.logger is not None:
                 self.logger(self, iteration)
